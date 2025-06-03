@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: form-submission-app
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: form-submission-app
+  template:
+    metadata:
+      labels:
+        app: form-submission-app
+    spec:
+      containers:
+      - name: form-submission-app
+        image: ${REGISTRY_NAME}.azurecr.io/form-submission-app:${GITHUB_SHA}
+        ports:
+        - containerPort: 8000
+        env:
+        - name: KEY_VAULT_URL
+          value: "https://your-keyvault.vault.azure.net/"
+        - name: AZURE_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: azure-credentials
+              key: client-id
+        - name: AZURE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: azure-credentials
+              key: client-secret
+        - name: AZURE_TENANT_ID
+          valueFrom:
+            secretKeyRef:
+              name: azure-credentials
+              key: tenant-id
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: azure-credentials
+  namespace: default
+type: Opaque
+stringData:
+  client-id: "your-client-id"
+  client-secret: "your-client-secret"
+  tenant-id: "your-tenant-id"
